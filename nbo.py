@@ -1,10 +1,17 @@
 import pandas as pd
 import streamlit as st
+from io import StringIO
 
 def process_data(file_contents):
     try:
-        # Load the CSV file into a DataFrame
-        df = pd.read_csv(file_contents)
+        # Convert the byte content to a string
+        file_contents_str = file_contents.decode("utf-8")
+
+        # Create a file-like object using StringIO
+        file_like_object = StringIO(file_contents_str)
+
+        # Load the CSV file-like object into a DataFrame
+        df = pd.read_csv(file_like_object)
 
         # Create a boolean mask to identify rows containing 'RY*' or 'CR' in any column
         mask = df.apply(lambda row: any(['RY*' in str(cell) or 'CR' in str(cell) for cell in row]), axis=1)
@@ -44,7 +51,7 @@ def main():
 
         # Process the data when the user clicks the "Process" button
         if st.button("Process"):
-            # Convert the uploaded file to a DataFrame
+            # Get the content of the uploaded file as bytes
             file_contents = uploaded_file.read()
             process_data(file_contents)
 
