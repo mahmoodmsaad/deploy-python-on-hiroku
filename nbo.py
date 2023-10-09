@@ -1,10 +1,10 @@
 import pandas as pd
 import streamlit as st
 
-def process_data(file_path):
+def process_data(file_contents):
     try:
         # Load the CSV file into a DataFrame
-        df = pd.read_csv(file_path)
+        df = pd.read_csv(file_contents)
 
         # Create a boolean mask to identify rows containing 'RY*' or 'CR' in any column
         mask = df.apply(lambda row: any(['RY*' in str(cell) or 'CR' in str(cell) for cell in row]), axis=1)
@@ -20,10 +20,10 @@ def process_data(file_path):
             # Take the top 5 rows based on the specified number
             top_5_rows = df_sorted.head(5)
 
-            # Save the top 5 rows to a new CSV file
-            top_5_rows.to_csv('top_sorted_result.csv', index=False)
+            # Display the top 5 rows in a Streamlit table
+            st.table(top_5_rows)
 
-            st.success("Data processing complete. Top 5 rows saved to 'top_sorted_result.csv'")
+            st.success("Data processing complete.")
         else:
             st.warning("Column 'kcal/mol' not found in the filtered DataFrame.")
     
@@ -44,8 +44,9 @@ def main():
 
         # Process the data when the user clicks the "Process" button
         if st.button("Process"):
-            # Process the data using the uploaded file
-            process_data(uploaded_file)
+            # Convert the uploaded file to a DataFrame
+            file_contents = uploaded_file.read()
+            process_data(file_contents)
 
 # Run the Streamlit app
 if __name__ == '__main__':
