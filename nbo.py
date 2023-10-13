@@ -1,60 +1,62 @@
-import pandas as pd
 import streamlit as st
-from io import StringIO
+import pandas as pd
 
-def process_data(file_contents):
-    try:
-        # Convert the byte content to a string
-        file_contents_str = file_contents.decode("utf-8")
+def load_data(file_path):
+    return pd.read_csv(file_path)
 
-        # Create a file-like object using StringIO
-        file_like_object = StringIO(file_contents_str)
+def filter_data(data, ignore_values, top_n, ascending=True):
+    # Ignore rows containing specified values
+    for value in ignore_values:
+        data = data[data['Orbital'] != value]
 
-        # Load the CSV file-like object into a DataFrame
-        df = pd.read_csv(file_like_object)
+    # Display maximum kcal/mol
+    max_kcal = data['kcal/mol'].max()
+    st.subheader(f"Maximum kcal/mol: {max_kcal}")
 
-        # Create a boolean mask to identify rows containing 'RY*' or 'CR' in any column
-        mask = df.apply(lambda row: any(['RY*' in str(cell) or 'CR' in str(cell) for cell in row]), axis=1)
+    # Display information about specific orbitals
+    orbital_info = {}
+    for orbital in ['RY*', 'BD*', 'BD', 'LP', 'CR']:
+        orbital_count = data[data['Orbital'] == orbital].shape[0]
+        orbital_info[orbital] = {
+            'Count': orbital_count,
+            'Rows': data[data['Orbital'] == orbital].index.tolist()
+        }
 
-        # Invert the mask to keep rows without 'RY*' or 'CR'
-        df_filtered = df[~mask]
+    st.subheader("Orbital Information:")
+    st.write(orbital_info)
 
-        # Check if 'kcal/mol' column exists
-        if 'kcal/mol' in df_filtered.columns:
-            # Sort the DataFrame by 'kcal/mol' in descending order
-            df_sorted = df_filtered.sort_values(by='kcal/mol', ascending=False)
+    # Sort by kcal/mol and display top N
+    sorted_data = data.sort_values(by='kcal/mol', ascending=ascending)
+    return sorted_data.head(top_n)
 
-            # Take the top 5 rows based on the specified number
-            top_5_rows = df_sorted.head(5)
-
-            # Display the top 5 rows in a Streamlit table
-            st.table(top_5_rows)
-
-            st.success("Data processing complete.")
-        else:
-            st.warning("Column 'kcal/mol' not found in the filtered DataFrame.")
-    
-    except Exception as e:
-        st.error(f"An error occurred: {e}")
-
-# Streamlit UI
 def main():
-    st.title("NBO Orbital Processor")
+    st.title("Orbital Energy Analyzer")
 
-    # File uploader widget
-    uploaded_file = st.file_uploader("Upload a CSV file", type=["csv"])
+    # Upload CSV file
+    uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
 
     if uploaded_file is not None:
-        # Display some details about the uploaded file
-        st.write("Uploaded file details:")
-        st.write({"filename": uploaded_file.name, "filetype": uploaded_file.type, "size (bytes)": uploaded_file.size})
+        data = load_data(uploaded_file)
 
-        # Process the data when the user clicks the "Process" button
-        if st.button("Process"):
-            # Get the content of the uploaded file as bytes
-            file_contents = uploaded_file.read()
-            process_data(file_contents)
+        # Display raw data
+        st.subheader("Raw Data:")
+        st.write(data)
 
-# Run the Streamlit app
-if __name__ == '__main__':
+        # Ignore specified orbitals
+        ignore_values = st.multiselect("Ignore Orbitals:", ['RY*', 'CR', 'LP'])
+
+        # Filter by top or bottom energies
+        filter_type = st.radio("Select Filter Type:", ["Top", "Bottom"])
+        top_n = st.number_input("Number of Orbitals to Display:", min_value=1, max_value=len(data), value=10)
+
+        if filter_type == "Top":
+            st.subheader(f"Top {top_n} Orbitals:")
+            result = filter_data(data, ignore_values, top_n)
+        else:
+            st.subheader(f"Bottom {top_n} Orbitals:")
+            result = filter_data(data, ignore_values, top_n, ascending=False)
+
+        st.write(result)
+
+if __name__ == "__main__":
     main()
